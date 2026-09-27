@@ -5,6 +5,13 @@ the focused editable field through the Accessibility API, sends a completed sent
 to this Laravel API, and shows a suggested correction. Changed corrections and their
 individual errors are saved for statistics and recommendations.
 
+> [!WARNING]
+> This is a prototype that demonstrates the main idea. Some processes and approaches
+> are deliberately simplified, and the project is not production-ready.
+
+The macOS client is maintained in the
+[LangCoach macOS repository](https://github.com/v-lavr/lang-coach-mac-os).
+
 ## Main flow
 
 ```mermaid
@@ -28,7 +35,8 @@ sentence, never the entire document. Password and secure fields are not read.
 - MySQL and the PHP `pdo_mysql` extension
 - Python 3.10 or later for the bundled local grammar model
 - Python packages: `fastapi`, `uvicorn`, `transformers`, `torch`, and `pydantic`
-- Xcode 15 or later to build the macOS app in `../XcodeProjects/LangCoachApp`
+- Xcode 15 or later to build the
+  [macOS app](https://github.com/v-lavr/lang-coach-mac-os)
 - An OpenAI API key only for `GET /api/recommendations`
 
 ## Install and run
@@ -90,9 +98,9 @@ equivalent flow) and Keychain-backed credentials.
 
 ### 4. Build and configure the macOS app
 
-Open `../XcodeProjects/LangCoachApp/LangCoachApp.xcodeproj` in Xcode and run the
-`LangCoachApp` scheme. Grant Accessibility permission when prompted, then open
-Settings and enter:
+Clone the [LangCoach macOS repository](https://github.com/v-lavr/lang-coach-mac-os),
+open `LangCoachApp.xcodeproj` in Xcode, and run the `LangCoachApp` scheme. Grant
+Accessibility permission when prompted, then open Settings and enter:
 
 - **API URL:** `https://lang-coach-s.test`
 - **Bearer token:** the development token from the previous step
