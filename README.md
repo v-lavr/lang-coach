@@ -1,58 +1,111 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# LangCoach
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+LangCoach is a local grammar-coaching prototype. A native macOS menu-bar app watches
+the focused editable field through the Accessibility API, sends a completed sentence
+to this Laravel API, and shows a suggested correction. Changed corrections and their
+individual errors are saved for statistics and recommendations.
 
-## About Laravel
+## Main flow
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```mermaid
+flowchart LR
+    A[macOS app] -->|POST /api/check| B[Laravel API]
+    B --> C[Local grammar model]
+    C -->|corrected text + errors| B
+    B --> D[(MySQL)]
+    B -->|correction| A
+    D --> E[Stats and recommendations]
+    E --> F[OpenAI, optional]
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+All API routes require a Sanctum Bearer token. The macOS app sends only the completed
+sentence, never the entire document. Password and secure fields are not read.
 
-## Contributing
+## Requirements
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- PHP 8.3 or later
+- Composer
+- MySQL and the PHP `pdo_mysql` extension
+- Python 3.10 or later for the bundled local grammar model
+- Python packages: `fastapi`, `uvicorn`, `transformers`, `torch`, and `pydantic`
+- Xcode 15 or later to build the macOS app in `../XcodeProjects/LangCoachApp`
+- An OpenAI API key only for `GET /api/recommendations`
 
-## Code of Conduct
+## Install and run
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 1. Configure Laravel
 
-## Security Vulnerabilities
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Set the following values in `.env`:
 
-## License
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=lang_coach
+DB_USERNAME=your_user
+DB_PASSWORD=your_password
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+GRAMMAR_MODEL_URL=http://127.0.0.1:8001/correct
+GRAMMAR_MODEL_TIMEOUT=5
+```
+
+Then create the schema:
+
+```bash
+php artisan migrate
+```
+
+Herd serves this project locally at `https://lang-coach-s.test`. If the site has not
+already been linked and secured in Herd, do that first through Herd's Site Manager.
+
+### 2. Start the local grammar model
+
+From this repository:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install fastapi uvicorn transformers torch pydantic
+uvicorn ai.app:app --host 127.0.0.1 --port 8001
+```
+
+The first start downloads `thenHung/english-grammar-error-correction-t5-seq2seq`.
+Keep this process running while using `/api/check`.
+
+### 3. Create a development token
+
+```bash
+php artisan app:create-development-token
+```
+
+Copy the printed token. It is shown only once and must not be committed. This is a
+prototype-only authentication method; production should use Google OAuth/OIDC (or an
+equivalent flow) and Keychain-backed credentials.
+
+### 4. Build and configure the macOS app
+
+Open `../XcodeProjects/LangCoachApp/LangCoachApp.xcodeproj` in Xcode and run the
+`LangCoachApp` scheme. Grant Accessibility permission when prompted, then open
+Settings and enter:
+
+- **API URL:** `https://lang-coach-s.test`
+- **Bearer token:** the development token from the previous step
+
+Type a completed sentence in TextEdit. The app calls `POST /api/check`; if the API
+returns a correction, LangCoach shows a popup where you can Ignore or Replace it.
+
+## API
+
+- `POST /api/check` — checks and saves changed corrections
+- `GET /api/stats` — returns user-scoped correction and error statistics
+- `GET /api/recommendations` — generates recommendations from aggregated errors;
+  requires `OPENAI_API_KEY`
+
+See [docs/api.md](docs/api.md) for request examples, response contracts, and manual
+API testing steps.

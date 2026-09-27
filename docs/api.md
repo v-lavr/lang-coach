@@ -29,4 +29,6 @@ TODO: This manually provisioned Sanctum token is prototype-only. Production must
 5. Send `POST https://lang-coach-s.test/api/check` with `Authorization: Bearer <token>` and JSON `{ "text": "I didn't knew about this." }`. A changed model result is returned and persisted. A correct sentence returns `changed: false` and is not persisted.
 6. Send `GET https://lang-coach-s.test/api/recommendations` with the same Bearer token after corrections exist. Set `OPENAI_API_KEY` before this step; the endpoint aggregates the user's errors and requests structured recommendations from OpenAI.
 
-The local grammar-model service is not part of this repository. It must expose an HTTP endpoint that accepts `{ "text": "..." }` and returns the documented `changed`, `original`, `corrected`, and `errors` JSON contract.
+The bundled local grammar-model service is in `ai/app.py`. It exposes `POST /correct`,
+accepts `{ "text": "..." }`, and returns `{ "corrected", "errors" }`. Laravel
+normalizes that response into the public API contract.
