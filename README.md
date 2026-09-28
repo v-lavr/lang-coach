@@ -9,6 +9,8 @@ individual errors are saved for statistics and recommendations.
 > This is a prototype that demonstrates the main idea. Some processes and approaches
 > are deliberately simplified, and the project is not production-ready.
 
+https://github.com/user-attachments/assets/b2b71655-ec96-4774-a558-02466950ccae
+
 The macOS client is maintained in the
 [LangCoach macOS repository](https://github.com/v-lavr/lang-coach-mac-os).
 
